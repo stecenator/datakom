@@ -1,0 +1,75 @@
+---
+# Configure storage demo on AIX host 
+- hosts: aix		        # Execute on all AIX hosts within "aix" group defined in inventory
+  gather_facts: true    # May need it
+  remote_user: root
+
+  tasks:
+    - name: List current list of disks visible to AIX hosts
+      debug:
+        msg: "Disk: {{ item.key }}, PVID: {{ item.value.attributes.pvid }}, State: {{ item.value.state }}"
+      loop: "{{ ansible_facts.devices | dict2items | selectattr('key', 'match', '^hdisk[0-9]+$') | list }}"
+      tags:
+        - LIST_PV
+
+    - name: "Configure new disk"
+      ibm.power_aix.devices:
+        device: "all"
+        state: available
+      tags:
+        - "CFGMGR"
+
+    - name: Create a volume group 
+      ibm.power_aix.lvg:
+        vg_name: "{{ aix_vg }}"
+        state: present
+        pvs: "{{ aix_hdisk }}"
+        vg_type: scalable
+      tags:
+        - MKVG
+
+    - name: List currnt list of disks visible to AIX hosts after discovery and setting PVID
+      debug:
+        msg: "Disk: {{ item.key }}, PVID: {{ item.value.attributes.pvid }}, State: {{ item.value.state }}"
+      loop: "{{ ansible_facts.devices | dict2items | selectattr('key', 'match', '^hdisk[0-9]+$') | list }}"
+      tags:
+        - LIST_PV2
+
+    - name: Create a logical volume
+      ibm.power_aix.lvol:
+        vg: "{{ aix_vg }}"
+        lv: "{{ aix_lv }}"
+        # pv_list: "{{ aix_hdisk }}"
+        size: "{{ aix_lv_size }}"
+        state: present
+        lv_type: jfs2
+      tags:
+        - MKLV
+
+    - name: "{{ aix_mp }} mount point"
+      file:
+        path: "{{ aix_mp }}"
+        state: directory
+        owner: "root"
+        mode: '0755'
+      tags:
+        - MOUNTPOINT
+        - MKFS
+
+    - name: "Create {{ aix_mp }} filesystem on {{ aix_lv }}"
+      ibm.power_aix.filesystem:
+        device: "{{ aix_lv }}"
+        filesystem: "{{ aix_mp }}"
+        state: present
+        fs_type: jfs2
+        auto_mount: True
+        attributes: logname=INLINE
+      tags:
+        - MKFS
+
+    - name: Mount {{ aix_mp }} filesystem
+      ibm.power_aix.mount:
+        state: mount
+        mount_dir: "{{ aix_mp }}"
+      tags:
+        - MOUNTFS

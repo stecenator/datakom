@@ -1,0 +1,40 @@
+---
+# IBM FlashSystem - Proviion and map a volume to the host
+- hosts: localhost    # Task is executed on Ansible control host...
+  gather_facts: false # ... so no need to gather the facts 
+
+  tasks:
+    - name: "Authenticate as {{ fs_user }} on {{ fs_cluster }}"
+      register: auth_info   # auth_info.token - no need to re-authenticate on every task
+      ibm.storage_virtualize.ibm_svc_auth:
+        clustername: "{{ fs_cluster }}"
+        log_path: "{{ fs_log }}"
+        username: "{{ fs_user }}"
+        password: "{{ fs_pass }}"
+      tags: always     # always execute this task, regardless of other tags
+
+    - name: "Create {{ fs_lun }} vdisk"
+      ibm.storage_virtualize.ibm_svc_manage_volume:
+        clustername: "{{ fs_cluster }}"
+        log_path: "{{ fs_log }}"
+        token: "{{ auth_info.token }}"
+        name: "{{ fs_lun }}"
+        state: "present"
+        pool: "{{ fs_mdiskgrp }}"
+        size: "{{ fs_lun_size }}"
+        unit: "gb"
+        iogrp: "{{ fs_iogrp }}"
+        novolumegroup: True
+      tags:
+        - LUN_CREATE
+
+    - name: "Map the {{ fs_lun }} to {{ fs_host }} host"
+      ibm.storage_virtualize.ibm_svc_vol_map:
+        clustername: "{{ fs_cluster }}"
+        log_path: "{{ fs_log }}"
+        token: "{{ auth_info.token }}"
+        volname: "{{ fs_lun }}"
+        host: "{{ fs_host }}"
+        state: present
+      tags:
+        - LUN_MAP

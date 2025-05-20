@@ -1,0 +1,33 @@
+---
+# Gathering some information about HMC
+
+- hosts: localhost    # Localhost is doinf ssh calls to HMC
+  gather_facts: false # ... so no need to gather the facts
+
+  tasks:
+    - name: Query the HMC
+      register: build_info
+      ibm.power_hmc.hmc_update_upgrade:
+          state: facts
+          hmc_host: '{{ hmc }}'
+          hmc_auth:
+              username: '{{ hmc_user }}'
+              password: '{{ hmc_pass }}'
+    - name: Display HMC build_info
+      debug:
+        var: build_info
+    
+    - name: Gathering information about {{ my_power }} box
+      register: sys_info
+      ibm.power_hmc.power_system:
+          hmc_host: '{{ hmc }}'
+          hmc_auth:
+              username: '{{ hmc_user }}'
+              password: '{{ hmc_pass }}'
+          state: facts
+          system_name: "{{ my_power }}"
+    - name: Display {{ my_power }} information
+      debug:
+        var: sys_info    }
+    }
+

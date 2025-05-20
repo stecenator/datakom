@@ -1,0 +1,122 @@
+---
+# Revert the demo - AIX part 
+- hosts: aix
+  remote_user: root
+  gather_facts: false
+
+  tasks:
+    - name: Umount the {{ aix_mp }} filesystem
+      ibm.power_aix.mount:
+        state: umount
+        mount_over_dir: "{{ aix_mp }}"
+      tags:
+        - UMOUNTFS
+        - AIX
+
+    - name: "Remove the {{ aix_mp }}"
+      ibm.power_aix.filesystem:
+        filesystem: "{{ aix_mp }}"
+        state: absent
+        rm_mount_point: true
+      tags:
+        - RMFS
+        - AIX
+
+    - name: Remove {{ aix_vg }} volume group
+      ibm.power_aix.lvg:
+        state: absent
+        vg_name: "{{ aix_vg }}"
+      tags:
+        - RMVG
+        - AIX
+
+    - name: Remove (delete) {{ aix_hdisk }} device and children
+      ibm.power_aix.devices:
+        device: "{{ aix_hdisk }}"
+        state: removed
+        recursive: true
+      tags:
+        - RMDEV
+        - AIX
+
+# IBM HMC Part - turn off the LPAR 
+
+- hosts: localhost
+  gather_facts: false
+
+  tasks:
+  - name: "Killng the  LPARu {{ lpar_name }} na HMC {{ hmc }}"
+    ibm.power_hmc.powervm_lpar_instance:
+      hmc_host: '{{ hmc }}'
+      hmc_auth:
+        username: '{{ hmc_user }}'
+        password: '{{ hmc_pass }}'
+      system_name: "{{ my_power }}"
+      vm_name: "{{ lpar_name }}"
+      action: shutdown
+    tags:
+      - "LPAR_KILL"
+      - "HMC"
+
+  - name: Wating for {{ lpar_name }} to stop...
+    register: lpar_state
+    ibm.power_hmc.powervm_lpar_instance:
+      hmc_host: '{{ hmc }}'
+      hmc_auth:
+        username: '{{ hmc_user }}'
+        password: '{{ hmc_pass }}'
+      system_name: "{{ my_power }}"
+      # vm_name: "Novalink_IIC"
+      vm_name: "{{ lpar_name }}"
+      state: facts    # Just get the facts
+    until: lpar_state.partition_info.PartitionState == "not activated"
+    retries: 5
+    delay: 30
+    tags:
+      - "LPAR_STAT"
+      - "HMC"
+
+  - name: Wyświetlenie statusu LPARu
+    debug:
+      var: lpar_state
+    tags:
+      - "LPAR_STAT"
+      - "HMC"
+
+# IBM FlashSystem part:
+# still runs on localhost so I put just another tasks here
+
+  - name: "Authenticate as {{ fs_user }} on {{ fs_cluster }}"
+    register: auth_info   # auth_info.token - no need to re-authenticate on every task
+    ibm.storage_virtualize.ibm_svc_auth:
+      clustername: "{{ fs_cluster }}"
+      log_path: "{{ fs_log }}"
+      username: "{{ fs_user }}"
+      password: "{{ fs_pass }}"
+    tags: 
+      - always     # always execute this task, regardless of other tags
+      - FS
+
+  - name: "Unmap the {{ fs_lun }} from {{ fs_host }} host"
+    ibm.storage_virtualize.ibm_svc_vol_map:
+      clustername: "{{ fs_cluster }}"
+      log_path: "{{ fs_log }}"
+      token: "{{ auth_info.token }}"
+      volname: "{{ fs_lun }}"
+      host: "{{ fs_host }}"
+      state: absent
+    tags:
+      - LUN_UNMAP
+      - FS
+
+  - name: "Remove the {{ fs_lun }} vdisk"
+    ibm.storage_virtualize.ibm_svc_manage_volume:
+      clustername: "{{ fs_cluster }}"
+      log_path: "{{ fs_log }}"
+      token: "{{ auth_info.token }}"
+      name: "{{ fs_lun }}"
+      state: absent
+    tags:
+      - LUN_REMOVE
+      - FS
+

@@ -1,0 +1,10 @@
+---
+# Gather AIX facts
+  - hosts: aix
+    gather_facts: true
+    remote_user: root
+
+    tasks:
+      - name: Display discovered inforamation
+        debug:
+          var: ansible_facts

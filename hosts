@@ -1,0 +1,17 @@
+localhost
+s922-vios1.iic
+s922-vios2.iic
+ajax.iic
+
+[aix]
+ajax.iic
+
+[aix:vars]
+ansible_python_interpreter=/opt/freeware/bin/python3.9
+
+[ctrl]
+localhost
+
+[vios]
+s922-vios1.iic
+s922-vios2.iic

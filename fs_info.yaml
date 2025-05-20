@@ -1,0 +1,24 @@
+---
+# Gather some information from IBM FlashSystem 
+
+- hosts: localhost    # Task is executed on Ansible control host...
+  gather_facts: false # ... so no need to gather the facts 
+
+  tasks:
+    - name: "Authenticate as {{ fs_user }} on {{ fs_cluster }}"
+      register: auth_info   # auth_info.token - no need to re-authenticate on every task
+      ibm.storage_virtualize.ibm_svc_auth:
+        clustername: "{{ fs_cluster }}"
+        log_path: "{{ fs_log }}"
+        username: "{{ fs_user }}"
+        password: "{{ fs_pass }}"
+    - name: Gathering storage inforamation
+      register: svc_inf
+      ibm.storage_virtualize.ibm_svc_info:
+        clustername: "{{ fs_cluster }}"
+        log_path: "{{ fs_log }}"
+        token: "{{ auth_info.token }}"
+        gather_subset: system     # Check the docs! Default `all` is a lot!
+    - name: Display discovered inforamation
+      debug:
+        var: svc_inf

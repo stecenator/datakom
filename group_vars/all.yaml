@@ -1,0 +1,22 @@
+---
+# Global variables for Demo
+# HMC stuff
+hmc: "hmc10.iic"          # HMC hostname
+my_power: "5817-S922"     # managed Power box
+lpar_name: "ms6018-sp-com-4a61ed9d-00000013"    # Managed LPAR name (on HMC, not it's hostname!)
+lpar_id: 10               # id LPAR
+# IBM FlashSystem information
+fs_cluster: "v5ke.iic"    # address
+fs_log: "/tmp/{{ fs_cluster }}.log"   # log file for debuging
+fs_user: "marcinek"       # user to log on. fs_pass defined in encrypted secrets.enc file
+fs_lun: "datakom_demo"    # vdisk name to provision
+fs_lun_size: 64           # vdisk size
+fs_host: "ms6018-sp-com-4a61ed9d-00000013-30352511"   # Host defined on FlashSystem
+fs_mdiskgrp: "Pool0"      # MDisk group used for vdisk provisioning
+fs_iogrp: "io_grp0"       # IO group to use
+# AIX LVM stuff
+aix_hdisk: "hdisk1"       # Dirty. Should be dynamically calculated ;-) 
+aix_vg: "datakomvg"       # VG name
+aix_lv: "datakomlv"       # LV name 
+aix_lv_size: "32G"        # filesystem size
+aix_mp: "/datakom"        # FS mountpoint
